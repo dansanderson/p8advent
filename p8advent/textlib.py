@@ -1,4 +1,34 @@
-"""A text library."""
+"""A text library.
+
+TextLib stores a set of strings containing English text as compact binary
+data. It can also generate Pico-8 Lua code capable of accessing a string given
+the string's numeric ID (returned by the encoder method). The goal is to make it
+easy to write Pico-8 games that use a large quantity of English text without
+storing that text in the code region of the cart.
+
+Strings are not encoded exactly. To save space when storing multi-word
+English phrases, word spaces are not stored. The generated Lua code uses
+rules about English phrases to calculate word spacing in the final string.
+
+See p8advent.tool for code that generates a full Pico-8 cart that replaces
+string literals in Lua source with string library IDs. To allow code to defer
+string assembly until the last minute, the code must explicitly call the t(sid)
+function (added during cart processing) to get the string value.
+
+TextLib uses a technique similar to the one used by old 8-bit text adventure
+games. Words are encoded as two bytes: a prefix ID and a suffix ID. A prefix
+is a fixed length that you set when you instantiate TextLib, typically 1 or 2.
+Each prefix has a list of suffixes indexed by the suffix ID. The decoded word
+is simply the prefix followed by the suffix. A string is a sequence of
+literal non-word characters and word byte pairs. See as_bytes() for a
+description of the complete binary representation.
+
+(It's debatable whether this is the best way to compress a set of short English
+phrases for a text game. It's also debatable whether a Pico-8 text game
+benefits from storing its text in a compacted form in cart data vs. in the
+code region. And of course making a text game in Pico-8 is a dubious endeavor
+to begin with. I just wanted to play with this technique.)
+"""
 
 __all__ = ['TextLib', 'encode_pscii']
 
@@ -16,34 +46,76 @@ _WORD = re.compile(r'[a-zA-Z\']+')
 CHAR_TABLE = ' !"#%\'()*+,-./0123456789:;<=>?abcdefghijklmnopqrstuvwxyz[]^_{~}'
 
 
-# A format pattern for the Lua code to inject. Format keys include:
-#   text_start_addr: the RAM address where the text data begins
-#   word_start_addr: the RAM address where the word lookup data begins
-#   prefix_length: the prefix length
+# A format pattern for the Lua code to inject. This expects a format key of
+# "text_start_addr" equal to the RAM address where the text data begins.
+#
+# _c(o) converts a character code to a single-character string.
+#
+# _t(sid) calculates the string with the given ID. It uses the string jump
+# table to find the character and word codes for the string, then builds the
+# result. If the next byte has its high bit set, then it and the following
+# byte are the prefix and suffix ID, respectively, of a word in the word
+# table. Otherwise it is a character code. For a word, it finds the prefix
+# using the word jump table, reads the prefix at that location (of a fixed
+# length encoded at pos 0), then scans a list of null-terminated suffixes to
+# find the appropriate suffix.
+#
+# Spaces are added according to English punctuation rules:
+#
+# * a space between words: "word word"
+# * a space after sentence ending punctuation and closing brackets if
+#    followed by a word: !),.?:;]}
+# * a space after a word if followed by opening brackets: ([{
+# * double-quotes (") are treated as brackets, alternating between opening and
+#    closing brackets
+#
+# Local variables in _t():
+#
+# * ta: The text data start absolute address.
+# * r : The result accumulator.
+# * sc : The sentence count.
+# * sa : The address of the first byte of the sentence string.
+#         This pointer is advanced during the sentence string loop.
+# * sae : The address of the last byte of the sentence string + 1.
+# * psa : The value at the sentence string pointer.
+# * pi : The prefix index.
+# * si : The suffix index.
+# * wa : The address of the first byte of the prefix for the word.
+# * pl : The prefix length.
+# * pli : Prefix char index (0-based).
+# * was : The address of the start of the word table.
+# * lww : True if the last string part was a word.
+# * lwep : True if the last string part was sentence-ending or
+#           bracket-closing punctuation.
+# * qt : True if the next double-quote is bracket-closing.
+#
+# TODO: Treat ~ (61) as a paragraph break, reset double-quote state.
 CHAR_TABLE_LUA = re.sub(r'"', '"..\'"\'.."', CHAR_TABLE)
 CHAR_TABLE_LUA = re.sub(r'{', '{{', CHAR_TABLE_LUA)
 CHAR_TABLE_LUA = re.sub(r'}', '}}', CHAR_TABLE_LUA)
 P8ADVENT_LUA_PAT = (
-    '_ct="' +
-    CHAR_TABLE_LUA +
-    '"\n_ta={text_start_addr}' +
-    '''
-function _c(o) return sub(_ct,o+1,o+1) end
-function t(sid)
- local r,sa,sae,pi,si,wa,pl,pli,was
- pl=peek(_ta)
- sc=bor(shl(peek(_ta+2),8),peek(_ta+1))
- was=_ta+bor(shl(peek(_ta+sc*2+4),8),peek(_ta+sc*2+3))
+    'function _c(o) return sub("' + CHAR_TABLE_LUA + '",o+1,o+1) end\n' +
+    'function _t(sid)\n' +
+    ' local ta={text_start_addr}\n' +
+    """local r,sc,sa,sae,psa,pi,si,wa,pl,pli,was,lww,lwep,qt
+ pl=peek(ta)
+ sc=bor(shl(peek(ta+2),8),peek(ta+1))
+ was=ta+bor(shl(peek(ta+sc*2+4),8),peek(ta+sc*2+3))
  r=''
- sa=_ta+bor(shl(peek(_ta+sid*2+4),8),peek(_ta+sid*2+3))
- sae=_ta+bor(shl(peek(_ta+(sid+1)*2+4),8),peek(_ta+(sid+1)*2+3))
+ sa=ta+bor(shl(peek(ta+sid*2+4),8),peek(ta+sid*2+3))
+ sae=ta+bor(shl(peek(ta+(sid+1)*2+4),8),peek(ta+(sid+1)*2+3))
+ lww=false
+ lwep=false
+ qt=false
  while sa<sae do
-  if band(peek(sa),128)==128 then
-   pi=band(peek(sa),127)
+  psa=peek(sa)
+  if band(psa,128)==128 then
+   if (lww or lwep) r=r.." "
+   pi=band(psa,127)
    si=peek(sa+1)
-   wa=_ta+bor(shl(peek(was+pi*2+1),8),peek(was+pi*2))
+   wa=ta+bor(shl(peek(was+pi*2+1),8),peek(was+pi*2))
    for pli=0,pl-1 do
-    r=r.._c(peek(wa+pli))
+    if (peek(wa+pli) > 0) r=r.._c(peek(wa+pli))
    end
    wa=wa+pl
    while si>0 do
@@ -56,14 +128,24 @@ function t(sid)
     wa+=1
    end
    sa+=1
+   lww=true
+   lwep=false
   else
-   r=r.._c(peek(sa))
+   if ((lww and ((psa==2 and qt)or(psa==6)or(psa==56)or(psa==60))) or
+       (lwep and psa==2 and not qt)) then
+     r=r.." "
+   end
+   r=r.._c(psa)
+   lww=false
+   lwep=((psa==2 and qt)or(psa==7)or(psa==10)or(psa==12)or(psa==24)or
+         (psa==25)or(psa==29)or(psa==57)or(psa==62))
+   if (psa==2) qt=not qt
   end
   sa+=1
  end
  return r
 end
-''')
+""")
 
 
 class Error(Exception):
@@ -125,9 +207,12 @@ class TextLib:
         """
         w = encode_pscii(w)
         if len(w) <= self._prefix_length:
-            return w
-        prefix = w[:self._prefix_length]
-        suffix = w[self._prefix_length:]
+            w += b'\x00' * (self._prefix_length - len(w))
+            prefix = w
+            suffix = b''
+        else:
+            prefix = w[:self._prefix_length]
+            suffix = w[self._prefix_length:]
         print('DEBUG: prefix_length={} prefix={} suffix={}'.format(
             self._prefix_length, list(prefix), list(suffix)))
         if prefix not in self._word_lib:

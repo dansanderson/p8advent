@@ -213,8 +213,6 @@ class TextLib:
         else:
             prefix = w[:self._prefix_length]
             suffix = w[self._prefix_length:]
-        print('DEBUG: prefix_length={} prefix={} suffix={}'.format(
-            self._prefix_length, list(prefix), list(suffix)))
         if prefix not in self._word_lib:
             self._prefix_lst.append(prefix)
             prefix_id = len(self._prefix_lst) - 1

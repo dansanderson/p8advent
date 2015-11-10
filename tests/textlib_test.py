@@ -21,7 +21,7 @@ class TestTextLib(unittest.TestCase):
 
     def test_encode_word_shorter_than_prefix(self):
         result = self.tl._encode_word('a')
-        self.assertEqual(b'\x1e', result)
+        self.assertEqual(b'\x80\x00', result)
 
     def test_encode_word_too_many_prefixes(self):
         try:
@@ -81,7 +81,7 @@ class TestTextLib(unittest.TestCase):
         self.tl.id_for_string('"Aardvark? Aaron, baron."')
 
         result = self.tl.generate_lua(text_start_addr=512)
-        self.assertIn('\n_ta=512\n', result)
+        self.assertIn('local ta=512\n', result)
 
 
 if __name__ == '__main__':

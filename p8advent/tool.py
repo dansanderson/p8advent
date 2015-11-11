@@ -49,10 +49,12 @@ def main(orig_args):
 
     my_textlib = textlib.TextLib(prefix_length=TEXT_PREFIX_LENGTH)
 
+    # TODO: Doing every string is dumb. Invent syntax? <"..." "...">?
+    # Use Lua long-string syntax (not supported by Pico-8)?
     for i, token in enumerate(my_lexer._tokens):
         if token.matches(lexer.TokString):
             sid = my_textlib.id_for_string(token.value)
-            my_lexer._tokens[i] = lexer.TokNumber(str(sid))
+            my_lexer._tokens[i] = lexer.TokString(sid)
 
     textlib_lua = my_textlib.generate_lua(text_start_addr=TEXT_START_ADDR)
     my_lexer.process_lines(l+'\n' for l in textlib_lua.split('\n'))

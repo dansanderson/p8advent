@@ -43,6 +43,21 @@ class TestTextLib(unittest.TestCase):
         except textlib.TooManyWordsForPrefixError:
             pass
 
+    def test_encode_string_id(self):
+        self.assertEqual('   ', self.tl._encode_string_id(0))
+        self.assertEqual('!  ', self.tl._encode_string_id(1))
+        self.assertEqual('"  ', self.tl._encode_string_id(2))
+        self.assertEqual('#  ', self.tl._encode_string_id(3))
+        self.assertEqual('%  ', self.tl._encode_string_id(4))
+        self.assertEqual('@  ', self.tl._encode_string_id(63))
+        self.assertEqual(' ! ', self.tl._encode_string_id(64))
+        self.assertEqual('!! ', self.tl._encode_string_id(65))
+        self.assertEqual('"! ', self.tl._encode_string_id(66))
+        self.assertEqual('@@ ', self.tl._encode_string_id(4095))
+        self.assertEqual('  !', self.tl._encode_string_id(4096))
+        self.assertEqual('! !', self.tl._encode_string_id(4097))
+        self.assertEqual('@@1', self.tl._encode_string_id(65535))
+
     def test_encode_string(self):
         result = self.tl._encode_string('aardvark aaron baron')
         self.assertEqual(b'\x80\x00\x80\x01\x81\x00', result)
@@ -53,15 +68,16 @@ class TestTextLib(unittest.TestCase):
 
     def test_id_for_string(self):
         result = self.tl.id_for_string('aardvark aaron baron')
-        self.assertEqual(0, result)
+        self.assertEqual('   ', result)
 
         result = self.tl.id_for_string('"Aardvark? Aaron, baron."')
-        self.assertEqual(1, result)
+        self.assertEqual('!  ', result)
 
         result = self.tl.id_for_string('aardvark aaron baron')
-        self.assertEqual(0, result)
+        self.assertEqual('   ', result)
 
     def test_as_bytes(self):
+        # Discard IDs, we just want to load the lib.
         self.tl.id_for_string('aardvark aaron baron')
         self.tl.id_for_string('"Aardvark? Aaron, baron."')
 

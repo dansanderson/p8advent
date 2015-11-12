@@ -1,8 +1,6 @@
 printer = nil
 msgs = {
 
-*"one"..*"two",
-
 *"Book the First--Recalled to Life",
 
 *"I. The Period",
@@ -24,8 +22,6 @@ throne of England; there were a king with a large jaw and a queen with
 a fair face, on the throne of France. In both countries it was clearer
 than crystal to the lords of the State preserves of loaves and fishes,
 that things in general were settled for ever.",
-
-*"Yeah baby!",
 
 *"It was the year of Our Lord one thousand seven hundred and seventy-five.
 Spiritual revelations were conceded to England at that favoured period,

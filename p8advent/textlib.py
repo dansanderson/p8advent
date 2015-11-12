@@ -216,6 +216,8 @@ class TextLib:
         self._string_lib_lst = list()
         self._prefix_length = prefix_length
 
+        self._total_chars_stored = 0
+
     def _encode_word(self, w):
         """Encodes a word, adding it to the library if necessary.
 
@@ -312,6 +314,7 @@ class TextLib:
             The string ID, encoded as a three-character pscii string.
         """
         s = re.sub(r'\s+', ' ', s)
+        self._total_chars_stored += len(s)  # for stats
         if s not in self._string_lib_map:
             self._string_lib_lst.append(self._encode_string(s))
             self._string_lib_map[s] = len(self._string_lib_lst) - 1
@@ -406,6 +409,7 @@ class TextLib:
         print('DEBUG: longest_suffix_size = {}'.format(longest_suffix_size))
         print('DEBUG: most_lookup_entries_count = {}'.format(most_lookup_entries_count))
         print('DEBUG: total_lookup_entries_count = {}'.format(total_lookup_entries_count))
+        print('DEBUG: original text size = {}'.format(self._total_chars_stored))
         print('DEBUG: total text lib size = {}'.format(len(string_jump_tbl) +
                                                        len(string_data) +
                                                        len(lookup_prefix_tbl) +

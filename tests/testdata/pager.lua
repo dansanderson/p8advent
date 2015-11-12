@@ -1,10 +1,10 @@
 printer = nil
 msgs = {
-"Book the First--Recalled to Life",
+*"Book the First--Recalled to Life",
 
-"I. The Period",
+*"I. The Period",
 
-"It was the best of times, it was the worst of times,
+*"It was the best of times, it was the worst of times,
 it was the age of wisdom, it was the age of foolishness,
 it was the epoch of belief, it was the epoch of incredulity,
 it was the season of Light, it was the season of Darkness,
@@ -16,15 +16,15 @@ in short, the period was so far like the present period, that some of
 its noisiest authorities insisted on its being received, for good or for
 evil, in the superlative degree of comparison only.",
 
-"There were a king with a large jaw and a queen with a plain face, on the
+*"There were a king with a large jaw and a queen with a plain face, on the
 throne of England; there were a king with a large jaw and a queen with
 a fair face, on the throne of France. In both countries it was clearer
 than crystal to the lords of the State preserves of loaves and fishes,
 that things in general were settled for ever.",
 
-"Yeah baby!",
+*"Yeah baby!",
 
-"It was the year of Our Lord one thousand seven hundred and seventy-five.
+*"It was the year of Our Lord one thousand seven hundred and seventy-five.
 Spiritual revelations were conceded to England at that favoured period,
 as at this. Mrs. Southcott had recently attained her five-and-twentieth
 blessed birthday, of whom a prophetic private in the Life Guards had
@@ -39,7 +39,7 @@ to relate, have proved more important to the human race than any
 communications yet received through any of the chickens of the Cock-lane
 brood.",
 
-"France, less favoured on the whole as to matters spiritual than her
+*"France, less favoured on the whole as to matters spiritual than her
 sister of the shield and trident, rolled with exceeding smoothness down
 hill, making paper money and spending it. Under the guidance of her
 Christian pastors, she entertained herself, besides, with such humane
@@ -63,6 +63,8 @@ that they were awake, was to be atheistical and traitorous."
 
 }
 msg_i = 0
+print_speed = 2.5  -- chars per frame; can be fractional
+print_speed_ctr = 0
 
 function new_printer()
     local printer = {
@@ -81,25 +83,30 @@ function new_printer()
             self.cur_str = self.cur_str..s
         else
             self.cur_str = s
-            self.cur_pos = 0
+            self.cur_pos = 1
             self.cur_line = 0
         end
     end
 
     function printer:scroll(h)
-        if self.cur_y > 101 then
+        if self.cur_y > 95 then
             memcpy(0x6000, 0x6000 + h*64, (108-h)*64)
         else
             self.cur_y += h
         end
+        rectfill(0, 108-h, 128, 108, 0)
     end
 
     function printer:update()
         local c, p
 
+        rectfill(0, 108, 128, 128, 1)
+        if self.paused then
+            print('-- more --', 86, 112, 6)
+        end
+
         if btnp(5) and self.paused then
             self.paused = false
-            -- TODO: clear more prompt
         end
         if self.paused then
             return
@@ -107,17 +114,7 @@ function new_printer()
 
         if self.cur_str ~= nil then
             c = sub(self.cur_str, self.cur_pos, self.cur_pos)
-            rectfill(0, 108, 128, 128, 1)
-            print(_t("char="), 0, 108, 6)
-            print(c, 20, 108, 6)
-            if c == _t(" ") then
-                print(_t("space"), 20, 115)
-            end
-            print(_t("x="), 28, 108, 6)
-            print(self.cur_x, 36, 108, 6)
-            print(_t("y="), 60, 108, 6)
-            print(self.cur_y, 68, 108, 6)
-            if c == _t(" ") then
+            if c == " " then
                 p = self.cur_pos + 1
                 while (p <= #self.cur_str) and
                         (sub(self.cur_str, p, p) ~= " ") do
@@ -125,12 +122,11 @@ function new_printer()
                 end
                 if (p - self.cur_pos) * 4 + self.cur_x > 127 then
                     self.cur_line +=1
-                    if self.cur_line >= 16 then
+                    if self.cur_line >= 14 then
                         self.paused = true
                         self.cur_line = 0
                     end
-                    -- TODO: display more prompt
-                    self:scroll(6)
+                    self:scroll(7)
                     self.cur_x = 0
                 else
                     self.cur_x += 4
@@ -141,7 +137,7 @@ function new_printer()
             end
             self.cur_pos += 1
             if self.cur_pos > #self.cur_str then
-                self:scroll(8)   -- end of paragraph scroll
+                self:scroll(9)   -- end of paragraph scroll
                 self.cur_x = 0
                 self.cur_str = nil
                 self.cur_pos = nil
@@ -159,8 +155,11 @@ function _init()
 end
 
 function _update()
-    printer:update()
-    printer:update()
+    print_speed_ctr += print_speed
+    while print_speed_ctr >= 1 do
+      printer:update()
+      print_speed_ctr -= 1
+    end
 
     if printer.cur_str == nil and btnp(5) then
         printer:print(_t(msgs[msg_i+1]))

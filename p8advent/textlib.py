@@ -101,16 +101,16 @@ CHAR_TABLE_LUA = re.sub(r'{', '{{', CHAR_TABLE_LUA)
 CHAR_TABLE_LUA = re.sub(r'}', '}}', CHAR_TABLE_LUA)
 P8ADVENT_LUA_PAT = (
     '_ct="' + CHAR_TABLE_LUA + '"\n' +
-    'function _c(o) return sub(_ct,o+1,o+1) end\n' +
-    """function _o(c)
+    """
+function _c(o) return sub(_ct,o+1,o+1) end
+function _o(c)
  local i
  for i=1,#_ct do
   if sub(_ct,i,i)==c then return i-1 end
  end
  return 63
 end
-    """ +
-    """function _t(sids)
+function _t(sids)
  local ta={text_start_addr}
  local sidsi,sid,r,sc,sa,sae,psa,pi,si,wa,pl,pli,was,lww,lwep,qt
  pl=peek(ta)

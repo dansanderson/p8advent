@@ -120,10 +120,10 @@ function _t(sids)
  lww=false
  lwep=false
  qt=false
- for sidsi=1,#sids-2,3 do
-  sid=bor(bor(_o(sub(sids,1,1)),
-              shl(_o(sub(sids,2,2)),6)),
-          shl(_o(sub(sids,3,3)),12))
+ for sidsi=1,#sids,3 do
+  sid=bor(bor(_o(sub(sids,sidsi,sidsi)),
+              shl(_o(sub(sids,sidsi+1,sidsi+1)),6)),
+          shl(_o(sub(sids,sidsi+2,sidsi+2)),12))
   sa=ta+bor(shl(peek(ta+sid*2+4),8),peek(ta+sid*2+3))
   sae=ta+bor(shl(peek(ta+(sid+1)*2+4),8),peek(ta+(sid+1)*2+3))
   while sa<sae do

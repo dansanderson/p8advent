@@ -138,14 +138,15 @@ function _t(sids)
     end
     wa=wa+pl
     while si>0 do
-     while peek(wa)!=0 do wa+=1 end
+     while band(peek(wa),128)~=128 and peek(wa)~=0 do wa+=1 end
      wa+=1
      si-=1
     end
-    while peek(wa)!=0 do
-     r=r.._c(peek(wa))
+    repeat
+     if peek(wa)==0 then break end
+     r=r.._c(band(peek(wa),127))
      wa+=1
-    end
+    until band(peek(wa-1),128)==128
     sa+=1
     lww=true
     lwep=false
@@ -372,8 +373,11 @@ class TextLib:
         for p in self._prefix_lst:
             lookup_data.extend(p)
             for suffix in self._word_lib[p]:
-                lookup_data.extend(suffix)
-                lookup_data.append(0)
+                if len(suffix) > 0:
+                    lookup_data.extend(suffix)
+                    lookup_data[-1] |= 0x80
+                else:
+                    lookup_data.append(0)
                 if len(suffix) > longest_suffix_size:
                     longest_suffix_size = len(suffix)
             lookup_offset_list.append(len(lookup_data))

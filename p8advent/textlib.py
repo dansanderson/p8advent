@@ -2,7 +2,7 @@
 
 TextLib stores a set of strings containing English text as compact binary
 data. It can also generate Pico-8 Lua code capable of accessing a string given
-the string's numeric ID (returned by the encoder method). The goal is to make it
+the string's string ID (returned by the encoder method). The goal is to make it
 easy to write Pico-8 games that use a large quantity of English text without
 storing that text in the code region of the cart.
 

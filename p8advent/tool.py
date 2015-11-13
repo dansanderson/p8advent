@@ -1,8 +1,8 @@
 """The main routines for the command-line tool.
 
-This tool processes a Lua source file into a Pico-8 cart. It addS a simple
+This tool processes a Lua source file into a Pico-8 cart. It adds a simple
 syntax rule for string literals: If a string literal is immediately preceded
-by a star (*), the string is added to a textlib data structure, and the
+by a star (*), the string is added to a text lib data structure, and the
 string literal is replaced with an encoded string ID (also a string). To get
 the original string, the Lua code must call the _t() function (added to the
 Lua code by the tool) and pass it the string ID. For example:
@@ -34,12 +34,13 @@ import textwrap
 from pico8.game import game
 from pico8.lua import lexer
 
-from . import textlib
+#from . import textlib
+from . import lzwlib
 
 
 # Depending on the text, this may need to be set to 2 to balance the number
 # of prefixes and the number of suffixes per prefix.
-TEXT_PREFIX_LENGTH = 1
+#TEXT_PREFIX_LENGTH = 1
 
 # To preserve a portion of the gfx region, use 512 * number of sprite rows.
 TEXT_START_ADDR = 0
@@ -58,9 +59,9 @@ def _get_argparser():
     parser.add_argument(
         '--lua', type=str, required=True,
         help='the annotated Lua code for the game')
-    parser.add_argument(
-        '--prefixlength', type=int, default=TEXT_PREFIX_LENGTH,
-        help='the prefix length for the text library; affects memory usage')
+    #parser.add_argument(
+    #    '--prefixlength', type=int, default=TEXT_PREFIX_LENGTH,
+    #    help='the prefix length for the text library; affects memory usage')
     parser.add_argument(
         '--startaddr', type=int, default=TEXT_START_ADDR,
         help='the Pico-8 cart address to put the text data')
@@ -83,7 +84,8 @@ def main(orig_args):
     with open(args.lua) as lua_fh:
         my_lexer.process_lines(lua_fh)
 
-    my_textlib = textlib.TextLib(prefix_length=args.prefixlength)
+    #my_textlib = textlib.TextLib(prefix_length=args.prefixlength)
+    my_textlib = lzwlib.LzwLib(start_addr=args.startaddr, end_addr=args.endaddr)
 
     saw_star = False
     for i, token in enumerate(my_lexer._tokens):
@@ -97,18 +99,19 @@ def main(orig_args):
         else:
             saw_star = False
 
-    textlib_lua = my_textlib.generate_lua(text_start_addr=args.startaddr)
+    #textlib_lua = my_textlib.generate_lua(text_start_addr=args.startaddr)
+    textlib_lua = my_textlib.generate_lua()
     my_lexer.process_lines(l+'\n' for l in textlib_lua.split('\n'))
 
     my_game.lua._lexer = my_lexer
     my_game.lua._parser.process_tokens(my_game.lua._lexer.tokens)
 
     text_bytes = my_textlib.as_bytes()
-    if args.startaddr + len(text_bytes) > args.endaddr:
-        raise ValueError('Text is too large to fit in the requested memory '
-                         'region: {} bytes is larger than {}-{}'.format(
-            len(text_bytes), args.startaddr, args.endaddr
-        ))
+    #if args.startaddr + len(text_bytes) > args.endaddr:
+    #    raise ValueError('Text is too large to fit in the requested memory '
+    #                     'region: {} bytes is larger than {}-{}'.format(
+    #        len(text_bytes), args.startaddr, args.endaddr
+    #    ))
     # TODO: generalize this into game class:
     memmap = ((0x0,0x2000,my_game.gfx._data),
               (0x2000,0x3000,my_game.map._data),

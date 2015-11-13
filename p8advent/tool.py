@@ -34,13 +34,8 @@ import textwrap
 from pico8.game import game
 from pico8.lua import lexer
 
-#from . import textlib
 from . import lzwlib
 
-
-# Depending on the text, this may need to be set to 2 to balance the number
-# of prefixes and the number of suffixes per prefix.
-#TEXT_PREFIX_LENGTH = 1
 
 # To preserve a portion of the gfx region, use 512 * number of sprite rows.
 TEXT_START_ADDR = 0
@@ -59,9 +54,6 @@ def _get_argparser():
     parser.add_argument(
         '--lua', type=str, required=True,
         help='the annotated Lua code for the game')
-    #parser.add_argument(
-    #    '--prefixlength', type=int, default=TEXT_PREFIX_LENGTH,
-    #    help='the prefix length for the text library; affects memory usage')
     parser.add_argument(
         '--startaddr', type=int, default=TEXT_START_ADDR,
         help='the Pico-8 cart address to put the text data')
@@ -84,7 +76,6 @@ def main(orig_args):
     with open(args.lua) as lua_fh:
         my_lexer.process_lines(lua_fh)
 
-    #my_textlib = textlib.TextLib(prefix_length=args.prefixlength)
     my_textlib = lzwlib.LzwLib(start_addr=args.startaddr, end_addr=args.endaddr)
 
     saw_star = False
@@ -99,7 +90,6 @@ def main(orig_args):
         else:
             saw_star = False
 
-    #textlib_lua = my_textlib.generate_lua(text_start_addr=args.startaddr)
     textlib_lua = my_textlib.generate_lua()
     my_lexer.process_lines(l+'\n' for l in textlib_lua.split('\n'))
 
@@ -107,33 +97,7 @@ def main(orig_args):
     my_game.lua._parser.process_tokens(my_game.lua._lexer.tokens)
 
     text_bytes = my_textlib.as_bytes()
-    #if args.startaddr + len(text_bytes) > args.endaddr:
-    #    raise ValueError('Text is too large to fit in the requested memory '
-    #                     'region: {} bytes is larger than {}-{}'.format(
-    #        len(text_bytes), args.startaddr, args.endaddr
-    #    ))
-    # TODO: generalize this into game class:
-    memmap = ((0x0,0x2000,my_game.gfx._data),
-              (0x2000,0x3000,my_game.map._data),
-              (0x3000,0x3100,my_game.gff._data),
-              (0x3100,0x3200,my_game.music._data),
-              (0x3200,0x4300,my_game.sfx._data))
-    for start_a, end_a, data in memmap:
-        if (args.startaddr > end_a or
-              args.startaddr + len(text_bytes) < start_a):
-            continue
-        data_start_a = (args.startaddr - start_a
-                        if args.startaddr > start_a
-                        else 0)
-        data_end_a = (args.startaddr + len(text_bytes) - start_a
-                      if args.startaddr + len(text_bytes) < end_a
-                      else end_a)
-        text_start_a = (0 if args.startaddr > start_a
-                        else start_a - args.startaddr)
-        text_end_a = (len(text_bytes)
-                      if args.startaddr + len(text_bytes) < end_a
-                      else -(args.startaddr + len(text_bytes) - end_a))
-        data[data_start_a:data_end_a] = text_bytes[text_start_a:text_end_a]
+    my_game.write_cart_data(text_bytes, args.startaddr)
 
     with open(game_fname, 'w') as outstr:
         my_game.to_p8_file(outstr, filename=game_fname)

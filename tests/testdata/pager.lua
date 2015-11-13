@@ -67,10 +67,10 @@ families were publicly cautioned not to go out of town without removing
 their furniture to upholsterers' warehouses for security; the highwayman
 in the dark was a City tradesman in the light, and, being recognised and
 challenged by his fellow-tradesman whom he stopped in his character of
-'the Captain,' gallantly shot him through the head and rode away; the
+\"the Captain,\" gallantly shot him through the head and rode away; the
 mail was waylaid by seven robbers, and the guard shot three dead, and
-then got shot dead himself by the other four, 'in consequence of the
-failure of his ammunition:'' after which the mail was robbed in peace;
+then got shot dead himself by the other four, \"in consequence of the
+failure of his ammunition:\" after which the mail was robbed in peace;
 that magnificent potentate, the Lord Mayor of London, was made to stand
 and deliver on Turnham Green, by one highwayman, who despoiled the
 illustrious creature in sight of all his retinue; prisoners in London
@@ -119,7 +119,7 @@ their duty.",
 *"With drooping heads and tremulous tails, they mashed their way through
 the thick mud, floundering and stumbling between whiles, as if they were
 falling to pieces at the larger joints. As often as the driver rested
-them and brought them to a stand, with a wary 'Wo-ho! so-ho-then!' the
+them and brought them to a stand, with a wary \"Wo-ho! so-ho-then!\" the
 near leader violently shook his head and everything upon it--like an
 unusually emphatic horse, denying that the coach could be got up the
 hill. Whenever the leader made this rattle, the passenger started, as a
@@ -143,7 +143,7 @@ the eyes of the body, of his two companions. In those days, travellers
 were very shy of being confidential on a short notice, for anybody on
 the road might be a robber or in league with robbers. As to the latter,
 when every posting-house and ale-house could produce somebody in
-'the Captain's' pay, ranging from the landlord to the lowest stable
+\"the Captain's\" pay, ranging from the landlord to the lowest stable
 non-descript, it was the likeliest thing upon the cards. So the guard
 of the Dover mail thought to himself, that Friday night in November, one
 thousand seven hundred and seventy-five, lumbering up Shooter's Hill, as

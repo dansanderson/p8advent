@@ -93,7 +93,7 @@ function _t(s)
     elseif _tl.d[c-#_tl.t+1]~=nil then
      r=_tl.d[c-#_tl.t+1]
     end
-    if p~=nil then
+    if p~=nil and #_tl.d+#_tl.t<tl.mt then
      if r~=nil then
       _tl.d[#_tl.d+1]=p..sub(r,1,1)
      else
@@ -157,6 +157,8 @@ end
 
 LZW_STARTING_WIDTH = 7
 
+MAX_TABLE_ENTRY_COUNT = 4096
+
 
 def _generate_lua(start_addr):
     """Generate the Lua code for the string unpacker.
@@ -170,11 +172,12 @@ def _generate_lua(start_addr):
     # Remove leading spaces to reduce char footprint.
     lua = re.sub(r'\n +', '\n', P8ADVENT_LUA)
 
-    return ('{}\n_tl.t="{}"\n_tl.a={}\n_tl.w={}\n'.format(
+    return ('{}\n_tl.t="{}"\n_tl.a={}\n_tl.w={}\n_tl.mt={}\n'.format(
         lua,
         re.sub(r'"', '"..\'"\'.."', CHAR_TABLE),
         start_addr,
-        LZW_STARTING_WIDTH))
+        LZW_STARTING_WIDTH,
+        MAX_TABLE_ENTRY_COUNT))
 
 
 class Error(Exception):
@@ -196,8 +199,7 @@ class CharOutOfRange(Error):
 
 
 class TooMuchDataError(Error):
-    """The string data does not fit in the given cart data range, or the
-    lookup table does not fit in the given RAM range.
+    """The compressed data does not fit in the given cart data range.
     """
     def __init__(self, msg):
         self._msg = msg
@@ -273,15 +275,9 @@ class LzwLib:
                 if s[start_i:end_i] not in self._dict:
                     # (Condition may or may not be false at the end of the
                     # string, so we check.)
-                    self._dict[s[start_i:end_i]] = len(self._dict)
-                    # TODO: this isn't an error! in fact, can safely stop
-                    # adding items to the dict at an earlier limit to save
-                    # dict space (in exchange for data space).
-                    if len(self._dict) > 65536:
-                        raise TooMuchDataError(
-                            'Lookup dictionary has more than 65536 entries in '
-                            'it')
-                    created_new_entry = self._dict[s[start_i:end_i]]
+                    if len(self._dict) < MAX_TABLE_ENTRY_COUNT:
+                        self._dict[s[start_i:end_i]] = len(self._dict)
+                        created_new_entry = self._dict[s[start_i:end_i]]
                     end_i -= 1
 
                 code = self._dict[s[start_i:end_i]]

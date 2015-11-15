@@ -54,7 +54,7 @@ CHAR_TABLE_FOR_SID = CHAR_TABLE + '@'
 #
 # (Note: Unlike TextLib's P8ADVENT_LUA_PAT, this is not a format pattern.)
 P8ADVENT_LUA = """
-_tl={a=nil,t=nil,d=nil}
+_tl={a=nil,t=nil,d=nil,w=nil}
 function _tl:c(o) return sub(_tl.t,o+1,o+1) end
 function _tl:o(c)
  local i
@@ -64,7 +64,8 @@ function _tl:o(c)
  return 63
 end
 function _t(s)
- local p,r,c,n,i,a,l
+ local p,r,c,n,i,a,l,bp,w,b
+ local tid
  if _tl.d == nil then
   _tl.d={}
   n=bor(peek(_tl.a),shl(peek(_tl.a+1),8))
@@ -72,29 +73,45 @@ function _t(s)
   while n>0 do
    p=nil
    i=bor(peek(a),shl(peek(a+1),8))
-   a+=2
+   a+=5
+   bp=0
    while i>0 do
-    c=bor(peek(a),shl(peek(a+1),8))
+    c=0
+    w=_tl.w
+    for bi=1,w do
+     b=band(shr(peek(a),bp),1)
+     c=bor(c,shl(b,bi-1))
+     bp+=1
+     if bp==8 then
+      a+=1
+      bp=0
+     end
+    end
     r=nil
-    if c<=#_tl.t then
-     r=sub(_tl.t,c+1,c+1)
-    elseif _tl.d[c-#_tl.t]~=nil then
+    if c<=(#_tl.t-1) then
+     r=_tl:c(c)
+    elseif _tl.d[c-#_tl.t+1]~=nil then
      r=_tl.d[c-#_tl.t+1]
     end
     if p~=nil then
      if r~=nil then
       _tl.d[#_tl.d+1]=p..sub(r,1,1)
      else
-      printh('EDGE CASE: '..(c-#_tl.t)..' == '..(#_tl.d+1))
-      _tl.d[c-#_tl.t]=p..sub(p,1,1)
-      r=_tl.d[c-#_tl.t]
+      _tl.d[c-#_tl.t+1]=p..sub(p,1,1)
+      r=_tl.d[c-#_tl.t+1]
+     end
+     if #_tl.d+#_tl.t==(2^_tl.w-1) then
+      _tl.w+=1
      end
     end
     p=r
-    a+=2
     i-=1
    end
    n-=1
+   if bp~=0 then
+    a+=1
+    bp=0
+   end
   end
  end
 
@@ -103,21 +120,42 @@ function _t(s)
   a=bor(bor(_tl:o(sub(s,i,i)),
              shl(_tl:o(sub(s,i+1,i+1)),6)),
          shl(_tl:o(sub(s,i+2,i+2)),12))
-  l=a+2+bor(peek(a),shl(peek(a+1),8))*2
+  l=bor(peek(a),shl(peek(a+1),8))
   a+=2
-  while a<l do
-   c=bor(peek(a),shl(peek(a+1),8))
-   if c<=#_tl.t then
+  tid=bor(peek(a),shl(peek(a+1),8))
+  a+=2
+  _tl.w=peek(a)
+  a+=1
+  bp=0
+  while l>0 do
+   c=0
+   w=_tl.w
+   for bi=1,w do
+    b=band(shr(peek(a),bp),1)
+    c=bor(c,shl(b,bi-1))
+    bp+=1
+    if bp==8 then
+     a+=1
+     bp=0
+    end
+   end
+   l-=1
+   if c<=(#_tl.t-1) then
     r=r.._tl:c(c)
    else
     r=r.._tl.d[c-#_tl.t+1]
    end
-   a+=2
+   tid+=1
+   if tid==(2^_tl.w) then
+    _tl.w+=1
+   end
   end
  end
  return r
 end
 """
+
+LZW_STARTING_WIDTH = 7
 
 
 def _generate_lua(start_addr):
@@ -129,10 +167,14 @@ def _generate_lua(start_addr):
     Returns:
         The Lua code, as a string.
     """
-    return ('{}\n_tl.t="{}"\n_tl.a={}\n'.format(
-        P8ADVENT_LUA,
+    # Remove leading spaces to reduce char footprint.
+    lua = re.sub(r'\n +', '\n', P8ADVENT_LUA)
+
+    return ('{}\n_tl.t="{}"\n_tl.a={}\n_tl.w={}\n'.format(
+        lua,
         re.sub(r'"', '"..\'"\'.."', CHAR_TABLE),
-        start_addr))
+        start_addr,
+        LZW_STARTING_WIDTH))
 
 
 class Error(Exception):
@@ -207,34 +249,62 @@ class LzwLib:
         self._dict = OrderedDict(
             (CHAR_TABLE[i], i) for i in range(len(CHAR_TABLE)))
 
+        self._code_width = LZW_STARTING_WIDTH
+        self._code_bit_pos = 0
+        self._code_buffer = None
+
     def id_for_string(self, s):
         s = re.sub(r'\s+', ' ', s.lower())
         if s not in self._string_id_map:
+            # TODO: dict length - 1?
+            expected_table_id = len(self._dict)
+            expected_code_width = self._code_width
+
+            self._code_buffer = bytearray()
+            self._code_bit_pos = 0
             sid = self._start_addr + 2 + len(self._data)
             start_i = 0
-            compressed_data = bytearray()
+            code_count = 0
             while start_i < len(s):
                 end_i = start_i + 1
                 while end_i < len(s) and s[start_i:end_i] in self._dict:
                     end_i += 1
+                created_new_entry = None
                 if s[start_i:end_i] not in self._dict:
                     # (Condition may or may not be false at the end of the
                     # string, so we check.)
                     self._dict[s[start_i:end_i]] = len(self._dict)
+                    # TODO: this isn't an error! in fact, can safely stop
+                    # adding items to the dict at an earlier limit to save
+                    # dict space (in exchange for data space).
                     if len(self._dict) > 65536:
                         raise TooMuchDataError(
                             'Lookup dictionary has more than 65536 entries in '
                             'it')
+                    created_new_entry = self._dict[s[start_i:end_i]]
                     end_i -= 1
+
                 code = self._dict[s[start_i:end_i]]
-                compressed_data.append(code & 255)
-                compressed_data.append(code >> 8)
+                for i in range(self._code_width):
+                    if self._code_bit_pos == 0:
+                        self._code_buffer.append(0)
+                    self._code_buffer[-1] |= (code & 1) << self._code_bit_pos
+                    code >>= 1
+                    self._code_bit_pos = (self._code_bit_pos + 1) % 8
+
+                if (created_new_entry is not None and
+                    created_new_entry == (2**self._code_width - 1)):
+                    self._code_width += 1
+
+                code_count += 1
                 start_i = end_i
 
-            cstrlen = len(compressed_data) // 2
-            self._data.append(cstrlen & 255)
-            self._data.append(cstrlen >> 8)
-            self._data.extend(compressed_data)
+            self._data.append(code_count & 255)
+            self._data.append(code_count >> 8)
+            self._data.append(expected_table_id & 255)
+            self._data.append(expected_table_id >> 8)
+            self._data.append(expected_code_width)
+            self._data.extend(self._code_buffer)
 
             encoded_sid = (CHAR_TABLE_FOR_SID[sid & 63] +
                            CHAR_TABLE_FOR_SID[(sid >> 6) & 63] +
